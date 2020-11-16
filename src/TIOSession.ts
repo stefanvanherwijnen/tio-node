@@ -7,7 +7,7 @@ import { TL_PTYPE_STREAM0,
 import utf8 from 'utf8'
 import { TIODevice } from './TIODevice'
 
-const timeoutPromise = (timeout: number) => new Promise((resolve, reject) => {
+const timeoutPromise = (timeout: number) => new Promise<never>((resolve, reject) => {
   setTimeout(() => reject(new Error('Request timed out')), timeout)
 })
 export class TIOSession {
