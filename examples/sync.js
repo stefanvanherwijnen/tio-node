@@ -6,10 +6,17 @@ const log = (object) => {
   logUpdate(util.inspect(object, {showHidden: false, depth: null}))
 }
 
+let session
+const connect = async () => {
+  session = new TIOSession({ streamingDevices: ['0', '1']})
+  await session.connect()
+  await session.start()
 
-const session = new TIOSession({ streamingDevices: ['0', '1']})
-session.connect()
-session.on('data', log)
+  session.on('data', log)
+}
+
+connect()
+
 process.on('SIGINT', function() {
   console.log("Caught interrupt signal");
   session.end()

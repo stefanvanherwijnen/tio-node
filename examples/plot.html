@@ -1,0 +1,66 @@
+<head>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+
+<body>
+  <input type="file" id="input" multiple>
+  <select id="dataToPlot" name="dataToPlot">
+    <option value="vector">Vector</option>
+    <option value="accel">Accel</option>
+    <option value="gyro">Gyro</option>
+  </select>
+  <div style="width: 500px; height: 500px" id="plot"></div>
+</body>
+
+<script>
+  const inputElement = document.getElementById("input");
+  inputElement.addEventListener("change", handleFiles, false);
+  function handleFiles(event) {
+    var reader = new FileReader();
+        reader.onload = onReaderLoad;
+        reader.readAsText(event.target.files[0]);
+  }
+
+  let rawData
+  let fileName = 'rawCalibrationData.Tue Nov 03 2020 15:13:28 GMT+0100 (Central European Standard Time).1.json'
+  // fetch(`${fileName}`).then(response => response.json()).then(data => {
+  function onReaderLoad (event) {
+    const dataToPlot = document.getElementById('dataToPlot').value
+
+    let data = JSON.parse(event.target.result)
+    let plot = document.getElementById('plot')
+
+    // var data = [[1, 0, 0], [2, 0, 2]]
+    let x1 = data.map(v => v[0][dataToPlot].x)
+    let y1 = data.map(v => v[0][dataToPlot].y)
+    let z1 = data.map(v => v[0][dataToPlot].z)
+    let time1 = data.map(v => v[0].time)
+    let trace1x = {
+      x: time1,
+      y: x1,
+      type: 'scatter'
+    };
+
+    let trace1y = {
+      x: time1,
+      y: y1,
+      type: 'scatter'
+    };
+
+    let trace1z = {
+      x: time1,
+      y: z1,
+      type: 'scatter'
+    };
+
+    let plotData = [trace1x, trace1y, trace1z];
+
+    var layout = {
+      autosize: false,
+      width: 800,
+      height: 800
+    };
+    Plotly.newPlot('plot', plotData, layout);
+  }
+
+</script>
