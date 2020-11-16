@@ -12,14 +12,14 @@ export declare class TIOSession {
     streamingDevices: Array<string>;
     packetEmitter: EventEmitter;
     constructor({ host, port, streamingDevices }?: {
-        host: string;
-        port: number;
-        streamingDevices: Array<string>;
+        host?: string;
+        port?: number;
+        streamingDevices?: Array<string>;
     });
-    connect(): void;
-    end(): void;
+    connect(): Promise<unknown>;
+    end(): Promise<unknown>;
     setup(): Promise<void>;
-    start(): Promise<void>;
+    start(): Promise<void[]>;
     rpc(topic: string, rpcPayload?: any, payloadType?: 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32', routing?: Array<number>): Promise<string>;
     checkIfSynchronized(sampleNumber: number): boolean;
     getSynchronizedSamples(sampleNumber: number): Record<string, any> | undefined;

@@ -21,7 +21,7 @@ export declare class TIODevice {
         name: string;
         description: string;
     }>;
-    start(): void;
+    start(): Promise<void>;
     ready(): boolean;
     samplingPeriod(): number | undefined;
     generateColumns(): void;

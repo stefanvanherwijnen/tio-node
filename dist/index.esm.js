@@ -3176,8 +3176,9 @@ class TIODevice {
         });
     }
     start() {
-        this.session.rpc('data.send_all', undefined, undefined, this.routing);
-        this.started = true;
+        return this.session.rpc('data.send_all', undefined, undefined, this.routing).then(() => {
+            this.started = true;
+        });
     }
     ready() {
         if (this.columns.length && this.started) {
@@ -3248,6 +3249,9 @@ class TIODevice {
     }
 }
 
+const timeoutPromise = (timeout) => new Promise((resolve, reject) => {
+    setTimeout(() => reject(new Error('Request timed out')), timeout);
+});
 class TIOSession {
     constructor({ host = 'localhost', port = 7855, streamingDevices = ['proxy'] } = { host: 'localhost', port: 7855, streamingDevices: ['proxy'] }) {
         this.devices = {};
@@ -3259,13 +3263,29 @@ class TIOSession {
         this.protocol = new TIOProtocol();
     }
     connect() {
-        this.socket.connect(this.port, this.host);
-        this.socket.on('connect', () => {
-            this.setup();
+        return __awaiter(this, void 0, void 0, function* () {
+            this.socket.connect(this.port, this.host);
+            this.socket.on('connect', () => {
+                this.setup();
+            });
+            const promise = new Promise((resolve, reject) => {
+                const interval = setInterval(() => {
+                    if (this.streamingDevices.every(v => Object.keys(this.devices).includes(v))) {
+                        clearInterval(interval);
+                        resolve();
+                    }
+                }, 1000);
+            });
+            return Promise.race([
+                promise,
+                timeoutPromise(5000)
+            ]);
         });
     }
     end() {
-        this.socket.end();
+        return new Promise((resolve, reject) => {
+            this.socket.end(() => resolve());
+        });
     }
     setup() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -3343,22 +3363,21 @@ class TIOSession {
                     device.generateColumns();
                 }
             });
-            setTimeout(() => {
-                this.start();
-            }, 3000);
         });
     }
     start() {
         return __awaiter(this, void 0, void 0, function* () {
+            const promises = [];
             for (const deviceNr of this.streamingDevices) {
                 const device = this.devices[deviceNr];
                 if (device) {
-                    device.start();
+                    promises.push(device.start());
                 }
                 else {
                     throw new Error(`${deviceNr} is not connected`);
                 }
             }
+            return Promise.all(promises);
         });
     }
     rpc(topic, rpcPayload, payloadType, routing) {
@@ -3366,7 +3385,7 @@ class TIOSession {
         if (!this.socket) {
             throw new Error('No socket connected');
         }
-        return new Promise((resolve, reject) => {
+        const promise = new Promise((resolve, reject) => {
             this.packetEmitter.once('rpcReply', reply => {
                 if (reply.payload.value) {
                     resolve(utf8.decode(reply.payload.value.toString()));
@@ -3377,6 +3396,10 @@ class TIOSession {
             });
             this.socket.write(request);
         });
+        return Promise.race([
+            promise,
+            timeoutPromise(5000)
+        ]);
     }
     checkIfSynchronized(sampleNumber) {
         for (const device of Object.values(this.devices)) {
