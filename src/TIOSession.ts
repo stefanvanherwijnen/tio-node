@@ -7,6 +7,9 @@ import { TL_PTYPE_STREAM0,
 import utf8 from 'utf8'
 import { TIODevice } from './TIODevice'
 
+const timeoutPromise = (timeout: number) => new Promise((resolve, reject) => {
+  setTimeout(() => reject(new Error('Request timed out')), timeout)
+})
 export class TIOSession {
 
   host: string
@@ -20,7 +23,7 @@ export class TIOSession {
   packetEmitter = new EventEmitter()
 
   constructor({ host = 'localhost', port = 7855, streamingDevices = ['proxy'] }:
-    { host: string, port: number, streamingDevices: Array<string>}
+    { host?: string, port?: number, streamingDevices?: Array<string>}
     = { host: 'localhost', port: 7855, streamingDevices: ['proxy']}) {
     this.host = host
     this.port = port
@@ -29,15 +32,29 @@ export class TIOSession {
     this.protocol = new TIOProtocol()
   }
 
-  connect () {
-    this.socket.connect(this.port, this.host)
-    this.socket.on('connect', () => {
-      this.setup()
-    })
+  async connect () {
+      this.socket.connect(this.port, this.host)
+      this.socket.on('connect', () => {
+        this.setup()
+      })
+      const promise =  new Promise((resolve, reject) => {
+        const interval = setInterval(() => {
+          if (this.streamingDevices.every(v => Object.keys(this.devices).includes(v))) {
+            clearInterval(interval)
+            resolve()
+          }
+        }, 1000)
+      })
+      return Promise.race([
+        promise,
+        timeoutPromise(5000)
+      ])
   }
 
   end () {
-    this.socket.end()
+    return new Promise((resolve, reject) => {
+      this.socket.end(() => resolve())
+    })
   }
 
   async setup () {
@@ -121,29 +138,27 @@ export class TIOSession {
       }
     })
 
-    setTimeout(() => {
-      this.start()
-    }, 3000)
   }
 
   async start () {
+    const promises = []
     for (const deviceNr of this.streamingDevices) {
       const device = this.devices[deviceNr]
       if (device) {
-        device.start()
+        promises.push(device.start())
       } else {
         throw new Error(`${deviceNr} is not connected`)
       }
     }
+    return Promise.all(promises)
   }
 
   rpc (topic: string, rpcPayload?: any, payloadType?: 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32',  routing?: Array<number>) {
     const { request, requestId } = this.protocol.createRequest(topic, rpcPayload, payloadType, routing)
-
     if (!this.socket) {
       throw new Error('No socket connected')
     }
-    return new Promise<string>((resolve, reject) => {
+    const promise = new Promise<string>((resolve, reject) => {
       this.packetEmitter.once('rpcReply', reply => {
         if (reply.payload.value) {
           resolve(utf8.decode(reply.payload.value.toString()))
@@ -154,6 +169,10 @@ export class TIOSession {
       this.socket.write(request)
     })
 
+    return Promise.race([
+      promise,
+      timeoutPromise(5000)
+    ])
   }
 
   checkIfSynchronized (sampleNumber: number) {

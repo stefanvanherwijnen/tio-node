@@ -31,8 +31,9 @@ export class TIODevice {
   }
 
   start () {
-    this.session.rpc('data.send_all', undefined, undefined, this.routing)
-    this.started = true
+    return this.session.rpc('data.send_all', undefined, undefined, this.routing).then(() => {
+      this.started = true
+    })
   }
 
   ready () {
