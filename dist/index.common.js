@@ -3281,7 +3281,10 @@ class TIOSession {
                 const interval = setInterval(() => {
                     if (this.streamingDevices.every(v => Object.keys(this.devices).includes(v))) {
                         clearInterval(interval);
-                        resolve();
+                        resolve(true);
+                    }
+                    else {
+                        console.log('Waiting on devices, connected devices: ', Object.keys(this.devices));
                     }
                 }, 1000);
             });
@@ -3293,7 +3296,7 @@ class TIOSession {
     }
     end() {
         return new Promise((resolve, reject) => {
-            this.socket.end(() => resolve());
+            this.socket.end(() => resolve(true));
         });
     }
     setup() {
