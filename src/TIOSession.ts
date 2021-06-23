@@ -29,6 +29,9 @@ export class TIOSession {
     this.port = port
     this.streamingDevices = streamingDevices
     this.socket = new net.Socket()
+    this.socket.on('error', (err) => {
+      console.error(err)
+    })
     this.protocol = new TIOProtocol()
   }
 
@@ -42,8 +45,11 @@ export class TIOSession {
           if (this.streamingDevices.every(v => Object.keys(this.devices).includes(v))) {
             clearInterval(interval)
             resolve(true)
-          } else {
+          } else if (Object.keys(this.devices).length) {
             console.log('Waiting on devices, connected devices: ', Object.keys(this.devices))
+          } else {
+            clearInterval(interval)
+            reject('Device is not ready')
           }
         }, 1000)
       })
